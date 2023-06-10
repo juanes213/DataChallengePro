@@ -648,12 +648,6 @@ resultadoanimalia2 <- prop.test(
 # Mostrar el resultado de la prueba
 print(resultadoanimalia2)
 
-
-
-
-
-
-
 # MODELO ----
 
 Tabla <- df_clean %>%

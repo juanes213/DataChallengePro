@@ -123,13 +123,13 @@ ui <- dashboardPage(
           }
           
           .box {
-            background-color: #43824D;
+            background-color: #4E8855;
             color: white;
             border: none;
           }
           
           .content-wrapper, .right-side {
-            background-color: #C2D7BB;
+            background-color: #4E8855;
           }
         ")
       )
@@ -173,6 +173,7 @@ ui <- dashboardPage(
           fluidRow(
             column(
               width = 3,
+              style = "background-color: green;",
               uiOutput("numOccurrences"),
               uiOutput("numKingdoms"),
               uiOutput("numGenera"),
@@ -182,6 +183,7 @@ ui <- dashboardPage(
             ),
             column(
               width = 9,
+              style = "background-color: green;",
               plotlyOutput("plot", height = "600px")
             )
           )
@@ -195,7 +197,7 @@ ui <- dashboardPage(
             box(
               title = "Explicación del Modelo",
               tags$div(
-                style = "background-color: #f9f9f9; padding: 20px; border-radius: 5px; border: 1px solid #dddddd;",
+                style = "background-color: #4E8855; padding: 20px; border-radius: 5px; border: 1px solid #dddddd;",
                 verbatimTextOutput("explicacion_modelo")
               )
             )
