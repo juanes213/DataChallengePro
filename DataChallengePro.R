@@ -23,6 +23,13 @@ library(plotly)
 library(packcircles)
 library(viridis)
 library(ggiraph)
+library(mlbench)
+library(ggcorrplot)
+library(ggpubr)
+library(car)
+library(broom)
+library(gridExtra)
+library(lmtest)
 
 
 paleta <- c("#85B84A", "#408C4C", "#29907D", "#4E8855", "#B8C290", "#B3C93A",
@@ -168,14 +175,14 @@ species_counts <- df_clean %>%
   summarize(num_species = n()) %>%
   arrange(desc(num_species))
 
-# Filtrar las clases con un conteo mayor a 550
+
 filtered_classes <- species_counts %>%
   filter(num_species > 500)
 
-# Ajustar los nombres de las clases para mejorar la legibilidad
+
 filtered_classes$class <- ifelse(nchar(filtered_classes$class) > 20, substr(filtered_classes$class, 1, 20), filtered_classes$class)
 
-# Gráfico de barras para el conteo de especies por clase y reino
+
 ggplot(filtered_classes, aes(x = reorder(class, num_species), y = num_species, fill = kingdom)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = num_species), vjust = -0.5, color = "black", size = 3.5) + 
@@ -193,13 +200,12 @@ ggplot(filtered_classes, aes(x = reorder(class, num_species), y = num_species, f
 
 # ENDEMICAS Y RIESGO ----
 
-# Obtener información sobre la categoría de amenaza y distribución de las especies
+
 iucn_data <- df_clean %>%
   select(scientificName, iucnRedListCategory, stateProvince) %>%
   na.omit() %>%
   distinct()
 
-# Contar el número de especies en cada categoría de amenaza
 iucn_counts <- iucn_data %>%
   group_by(iucnRedListCategory) %>%
   summarize(num_species = n_distinct(scientificName)) %>%
@@ -208,7 +214,6 @@ iucn_counts <- iucn_data %>%
 # Mostrar el número de especies en cada categoría de amenaza
 iucn_counts
 
-# Gráfico de barras para el número de especies en cada categoría de amenaza
 ggplot(iucn_counts, aes(x = iucnRedListCategory, y = num_species, fill = iucnRedListCategory)) +
   geom_bar(stat = "identity", width = 0.7, color = "black") +
   labs(title = "Número de especies en cada categoría de amenaza", x = "Categoría de amenaza", y = "Número de especies") +
@@ -221,7 +226,7 @@ ggplot(iucn_counts, aes(x = iucnRedListCategory, y = num_species, fill = iucnRed
 
 # ENDEMICAS AVES ----
 
-# Ordenar los datos de forma única por la variable en orden alfabético
+
 df_unique <- df_clean[order(df_clean$scientificName), ]
 
 unique(df_unique$scientificName)
@@ -234,14 +239,13 @@ nombre_endemica <- unique(endemic$`Nombre científico`)
 
 coincidencia <- intersect(nombre_cientificos, nombre_endemica)
 
-# Filtrar las especies endémicas presentes en las aves observadas
 especies_coincidentes <- df_clean %>%
   filter(scientificName %in% coincidencia)
 
 latitudes <- especies_coincidentes$decimalLatitude
 longitudes <- especies_coincidentes$decimalLongitude
 
-# Crear un dataframe con las ubicaciones
+
 ubicaciones <- data.frame(especie = especies_coincidentes$scientificName, lat = latitudes, lon = longitudes)
 
 colombia_bounds <- list(
@@ -259,7 +263,6 @@ mapa <- plot_ly(ubicaciones, x = ~lon, y = ~lat, type = "scattermapbox",
                        bounds = colombia_bounds),
          title = "Especies Endémicas en Colombia")
 
-# Imprimir el mapa
 mapa
 
 
@@ -274,7 +277,7 @@ nombre_planta_endemica <- unique(Plantas_Endemicas$Nombre)
 
 coincidencia_planta <- intersect(nombre_cientificos, nombre_planta_endemica)
 
-# Filtrar las especies endémicas presentes en las aves observadas
+
 especies_coincidentes <- df_clean %>%
   filter(scientificName %in% nombres_coincidentes)
 
@@ -283,10 +286,10 @@ unique(especies_coincidentes$scientificName)
 latitudes <- especies_coincidentes$decimalLatitude
 longitudes <- especies_coincidentes$decimalLongitude
 
-# Crear un dataframe con las ubicaciones
+
 ubicaciones <- data.frame(especie = especies_coincidentes$scientificName, lat = latitudes, lon = longitudes)
 
-# Crear el mapa utilizando Plotly
+
 mapa <- plot_geo(ubicaciones) %>%
   add_markers(
     x = ~lon,
@@ -307,7 +310,7 @@ mapa <- plot_geo(ubicaciones) %>%
       projection = list(type = "natural earth"),
       showland = TRUE,
       landcolor = "rgb(245, 245, 245)",
-      countrycolor = "rgb(0, 0, 0)",  # Cambio del color a negro (rgb(0, 0, 0))
+      countrycolor = "rgb(0, 0, 0)",  
       coastlinewidth = 1,
       lataxis = list(range = c(0, 13)),  # Rango de latitud visible (ajustado para Colombia)
       lonaxis = list(range = c(-82, -66)),  # Rango de longitud visible (ajustado para Colombia)
@@ -315,12 +318,12 @@ mapa <- plot_geo(ubicaciones) %>%
       countryhoverlabel = list(
         font = list(size = 12)
       ),
-      showcountries = TRUE  # Mostrar límites de países
+      showcountries = TRUE  
     ),
     margin = list(l = 50, r = 50, b = 50, t = 80)
   )
 
-# Imprimir el mapa
+
 ggplotly(mapa)
 
 
@@ -670,50 +673,129 @@ p <- ggplot(Tabla, aes(x = factor(iucnRedListCategory), y = Total, fill = factor
 ggplotly(p)
 
 Tabla2 <- df_clean %>%
-  dplyr::group_by(iucnRedListCategory, habitat, elevation, kingdom, phylum, class, order) %>%
+  dplyr::group_by(iucnRedListCategory, habitat, elevation, kingdom, phylum, class, order, taxonRank, species, locality) %>%
   dplyr::summarise(Total = n()) %>%
   dplyr::mutate(Porcentaje = round(Total/sum(Total)*100, 2)) %>%
   dplyr::arrange(iucnRedListCategory)
 Tabla2
 
+###################  Preprocesamiento ############################## 
 
 
-var_predict <- df_clean[, c('habitat', 'elevation','kingdom', 'phylum', 'class', 'order')]
-var_predict_complete <- na.omit(var_predict)
-datos_filtrados <- df_clean[rownames(df_clean) %in% rownames(var_predict_complete), ]
+posible_vars <- df_clean[, c('elevation','kingdom', 'phylum', 'class', 'order', 'taxonRank','locality')]
+
+df_clean$iucnRedListCategory <- as.factor(df_clean$iucnRedListCategory)
+df_clean$iucnRedListCategory <- droplevels(df_clean$iucnRedListCategory, exclude = "")
+
+posible_vars_complete <- na.omit(posible_vars)
+
+
+posible_vars_complete$kingdom <- as.factor(posible_vars_complete$kingdom)
+posible_vars_complete$phylum <- as.factor(posible_vars_complete$phylum)
+posible_vars_complete$class <- as.factor(posible_vars_complete$class)
+posible_vars_complete$order <- as.factor(posible_vars_complete$order)
+posible_vars_complete$taxonRank <- as.factor(posible_vars_complete$taxonRank)
+posible_vars_complete$locality <- as.factor(posible_vars_complete$locality)
+
+datos_filtrados <- df_clean[rownames(df_clean) %in% rownames(posible_vars_complete), ]
 var_obj <- as.factor(datos_filtrados$iucnRedListCategory)
 
-var_predict_complete$habitat <- as.factor(var_predict_complete$habitat)
-var_predict_complete$kingdom <- as.factor(var_predict_complete$kingdom)
-var_predict_complete$phylum <- as.factor(var_predict_complete$phylum)
-var_predict_complete$class <- as.factor(var_predict_complete$class)
-var_predict_complete$order <- as.factor(var_predict_complete$order)
+lillie.test(posible_vars_complete$elevation)
 
-var_predict_complete$habitat <- droplevels(var_predict_complete$habitat, exclude = "")
+table(posible_vars_complete$kingdom)
+barplot(table(posible_vars_complete$kingdom), col = paleta)
 
-# Ajustar el modelo completo con el conjunto de datos sin valores faltantes
-modelo_completo <- multinom(var_obj ~ ., data = var_predict_complete)
+table(posible_vars_complete$phylum)
+barplot(table(posible_vars_complete$phylum), col= paleta)
 
-# Ajustar el modelo nulo con el mismo conjunto de datos
-modelo_nulo <- multinom(var_obj ~ 1, data = var_predict_complete)
+table(posible_vars_complete$class)
+barplot(table(posible_vars_complete$class), col = paleta)
 
-# Ajustar el modelo saturado
-modelo_saturado <- multinom(var_obj ~ habitat + elevation + kingdom + phylum + class + order, data = var_predict_complete)
+table(posible_vars_complete$order)
+barplot(table(posible_vars_complete$order), col= paleta)
 
-# Comparar los modelos utilizando la prueba de razón de verosimilitud
+table(posible_vars_complete$taxonRank)
+barplot(table(posible_vars_complete$taxonRank), col = paleta)
+
+table(posible_vars_complete$locality)
+barplot(table(posible_vars_complete$locality), col = paleta)
+
+chisq.test(posible_vars_complete$kingdom, var_obj)
+chisq.test(posible_vars_complete$phylum, var_obj)
+chisq.test(posible_vars_complete$class, var_obj)
+chisq.test(posible_vars_complete$order, var_obj)
+chisq.test(posible_vars_complete$taxonRank, var_obj)
+chisq.test(posible_vars_complete$locality, var_obj)
+
+# Todas las variables sugieren que hay una asociacion estadísticamente significativa con la variable Iucn
+
+
+
+plot_ly(data = posible_vars_complete, x = ~kingdom, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'kingdom'",
+    xaxis = list(title = "Kingdom"),
+    yaxis = list(title = "Count")
+  )
+
+plot_ly(data = posible_vars_complete, x = ~phylum, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'phylum'",
+    xaxis = list(title = "Phylum"),
+    yaxis = list(title = "Count")
+  )
+
+plot_ly(data = posible_vars_complete, x = ~class, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'class'",
+    xaxis = list(title = "Class"),
+    yaxis = list(title = "Count")
+  )
+
+plot_ly(data = posible_vars_complete, x = ~order, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'order'",
+    xaxis = list(title = "Order"),
+    yaxis = list(title = "Count")
+  )
+
+plot_ly(data = posible_vars_complete, x = ~taxonRank, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'taxonRank'",
+    xaxis = list(title = "Taxon Rank"),
+    yaxis = list(title = "Count")
+  )
+
+plot_ly(data = posible_vars_complete, x = ~locality, color = ~var_obj, colors = paleta) %>%
+  layout(
+    title = "Distribución de la variable 'locality'",
+    xaxis = list(title = "Locality"),
+    yaxis = list(title = "Count")
+  )
+
+
+############# modelos ################# 
+modelo_completo <- multinom(var_obj ~ ., data = posible_vars_complete)
+
+modelo_seleccionado <- step(modelo_completo, direction = "both")
+modelo_nulo <- multinom(var_obj ~ 1, data = posible_vars_complete)
+
 anova(modelo_nulo, modelo_completo, test = "Chisq")
-anova(modelo_saturado, modelo_completo, test = "Chisq")
+lrtest(modelo_completo, modelo_nulo)
 
+exp(coef(modelo_seleccionado))
 
-modelo <- multinom(var_obj ~ habitat + elevation + kingdom + phylum + class + order, data = var_predict_complete)
+qqnorm(residuals(modelo_seleccionado))
+qqline(residuals(modelo_seleccionado))
+lillie.test(residuals(modelo_seleccionado))
 
 # Obtener la importancia relativa de las variables
-importance <- abs(coef(modelo))
+importance <- abs(coef(modelo_seleccionado))
 importance_sorted <- importance[order(importance, decreasing = TRUE)]
 barplot(importance_sorted, horiz = TRUE, las = 1)
 
 # Realizar predicciones en los datos de prueba
-predictions <- predict(modelo, newdata = var_predict_complete, type = "class")
+predictions <- predict(modelo_seleccionado, newdata = posible_vars_complete, type = "class")
 # Matriz de confusión
 confusion_matrix <- table(predictions, var_obj)
 
@@ -721,10 +803,14 @@ confusion_matrix <- table(predictions, var_obj)
 accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
 accuracy
 
-coeficientes <- coef(modelo)
+coeficientes <- coef(modelo_seleccionado)
+barplot(coeficientes, beside = TRUE, col = paleta)
 
-# Crear un gráfico de barras de los coeficientes
-barplot(coeficientes, beside = TRUE, col = paleta, legend.text = levels(var_obj))
+
+
+
+
+
 
 
 
